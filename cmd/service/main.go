@@ -1,15 +1,15 @@
-// cmd/service/main.go
 package main
 
 import (
 	"log"
 	"net"
 	"os"
+
 	"payment-service/api/proto"
 	"payment-service/internal/infrastructure/db"
 	"payment-service/internal/infrastructure/paymentgateway"
 	"payment-service/internal/infrastructure/repository"
-	"payment-service/internal/interface/grpc"
+	grpcHandler "payment-service/internal/interface/grpc"
 	"payment-service/internal/usecase"
 
 	"google.golang.org/grpc"
@@ -34,7 +34,7 @@ func main() {
 	paymentUseCase := usecase.NewPaymentUseCase(paymentRepo, stripeClient, xenditClient)
 
 	// Initialize gRPC handler
-	paymentHandler := grpc.NewPaymentHandler(paymentUseCase)
+	paymentHandler := grpcHandler.NewPaymentHandler(paymentUseCase)
 
 	// Set up gRPC server
 	grpcServer := grpc.NewServer()

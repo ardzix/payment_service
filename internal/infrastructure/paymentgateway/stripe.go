@@ -8,6 +8,7 @@ import (
 
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/paymentintent"
+	"github.com/stripe/stripe-go/v72/refund"
 )
 
 type StripeClient struct {
@@ -47,7 +48,7 @@ func (sc *StripeClient) RefundPayment(ctx context.Context, paymentID string, amo
 		Amount:        stripe.Int64(int64(amount * 100)),
 	}
 
-	refund, err := stripe.RefundNew(params)
+	refund, err := refund.New(params)
 	if err != nil {
 		return "", err
 	}

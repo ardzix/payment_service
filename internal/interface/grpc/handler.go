@@ -6,9 +6,12 @@ import (
 	"payment-service/api/proto"
 	"payment-service/internal/domain"
 	"payment-service/internal/usecase"
+
+	"github.com/google/uuid"
 )
 
 type PaymentHandler struct {
+	proto.UnimplementedPaymentServiceServer
 	useCase usecase.PaymentUseCase
 }
 
@@ -18,6 +21,7 @@ func NewPaymentHandler(useCase usecase.PaymentUseCase) *PaymentHandler {
 
 func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessPaymentRequest) (*proto.ProcessPaymentResponse, error) {
 	payment := &domain.Payment{
+		PaymentID:     uuid.New().String(),
 		UserID:        req.UserId,
 		Amount:        req.Amount,
 		Currency:      req.Currency,
