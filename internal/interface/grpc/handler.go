@@ -21,12 +21,15 @@ func NewPaymentHandler(useCase usecase.PaymentUseCase) *PaymentHandler {
 
 func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessPaymentRequest) (*proto.ProcessPaymentResponse, error) {
 	payment := &domain.Payment{
-		PaymentID:     uuid.New().String(),
-		UserID:        req.UserId,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		PaymentMethod: req.PaymentMethod,
-		PhoneNumber:   req.PhoneNumber,
+		PaymentID:             uuid.New().String(),
+		UserID:                req.UserId,
+		Amount:                req.Amount,
+		Currency:              req.Currency,
+		PaymentMethod:         req.PaymentMethod,
+		PhoneNumber:           req.PhoneNumber,
+		EwalletCheckoutMethod: req.EwalletCheckoutMethod,
+		QrType:                req.QrType,
+		QrCallbackURL:         req.QrCallbackUrl,
 	}
 
 	processedPayment, err := h.useCase.ProcessPayment(ctx, payment)

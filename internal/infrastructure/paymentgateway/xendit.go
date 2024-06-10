@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"payment-service/internal/domain"
+	"strings"
 
 	"github.com/xendit/xendit-go"
 	"github.com/xendit/xendit-go/ewallet"
@@ -26,14 +27,9 @@ func (xc *XenditClient) ProcessPayment(ctx context.Context, payment *domain.Paym
 	xendit.Opt.SecretKey = xc.apiKey
 
 	data := invoice.CreateParams{
-		ExternalID:  payment.PaymentID,
-		Amount:      payment.Amount,
-		PayerEmail:  payment.UserID, // Assuming UserID is an email
-		Description: "Payment for Order",
-		Currency:    payment.Currency,
-		PaymentMethods: []string{
-			payment.PaymentMethod,
-		},
+		ExternalID: payment.PaymentID,
+		Amount:     payment.Amount,
+		Currency:   payment.Currency,
 	}
 
 	createdInvoice, err := invoice.Create(&data)
@@ -51,11 +47,11 @@ func (xc *XenditClient) RefundPayment(ctx context.Context, paymentID string, amo
 
 func (xc *XenditClient) ChargeEWallet(ctx context.Context, payment *domain.Payment) (string, error) {
 	xendit.Opt.SecretKey = xc.apiKey
-
 	params := ewallet.CreateEWalletChargeParams{
-		ForUserID:   payment.PhoneNumber,
-		ReferenceID: payment.PaymentID,
-		Amount:      float64(payment.Amount * 100), // Xendit expects amount in cents
+		ReferenceID:    payment.PaymentID,
+		Currency:       payment.Currency,
+		Amount:         float64(payment.Amount * 100), // Xendit expects amount in cents
+		CheckoutMethod: payment.EwalletCheckoutMethod,
 	}
 
 	charge, err := ewallet.CreateEWalletCharge(&params)
@@ -69,9 +65,12 @@ func (xc *XenditClient) ChargeEWallet(ctx context.Context, payment *domain.Payme
 func (xc *XenditClient) CreateVirtualAccount(ctx context.Context, payment *domain.Payment) (string, error) {
 	xendit.Opt.SecretKey = xc.apiKey
 
+	// Remove the "XEN-" prefix from the payment method
+	bankCode := strings.TrimPrefix(payment.PaymentMethod, "XEN-")
+
 	params := virtualaccount.CreateFixedVAParams{
 		ExternalID:     payment.PaymentID,
-		BankCode:       payment.PaymentMethod,         // Bank code, e.g., "BCA", "BNI", etc.
+		BankCode:       bankCode,                      // Bank code, e.g., "BCA", "BNI", etc.
 		Name:           payment.UserID,                // Assuming UserID is the name here
 		ExpectedAmount: float64(payment.Amount * 100), // Xendit expects amount in cents
 	}
@@ -88,8 +87,10 @@ func (xc *XenditClient) CreateQRCode(ctx context.Context, payment *domain.Paymen
 	xendit.Opt.SecretKey = xc.apiKey
 
 	params := qrcode.CreateQRCodeParams{
-		ExternalID: payment.PaymentID,
-		Amount:     float64(payment.Amount * 100), // Xendit expects amount in cents
+		ExternalID:  payment.PaymentID,
+		Amount:      float64(payment.Amount * 100), // Xendit expects amount in cents
+		Type:        xendit.QRCodeType(payment.QrType),
+		CallbackURL: payment.QrCallbackURL,
 	}
 
 	qrCode, err := qrcode.CreateQRCode(&params)

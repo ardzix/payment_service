@@ -5,6 +5,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	"payment-service/api/proto"
 	"payment-service/internal/infrastructure/db"
 	"payment-service/internal/infrastructure/paymentgateway"
@@ -16,12 +18,14 @@ import (
 )
 
 func main() {
-	// Load environment variables
-	os.Setenv("STRIPE_API_KEY", "your_stripe_api_key")
-	os.Setenv("XENDIT_API_KEY", "your_xendit_api_key")
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
 
 	// Initialize MongoDB client
-	mongoClient := db.NewMongoClient("mongodb://localhost:27017")
+	mongoClient := db.NewMongoClient(os.Getenv("MONGO_URI"))
 
 	// Initialize repository
 	paymentRepo := repository.NewMongoPaymentRepository(mongoClient)
