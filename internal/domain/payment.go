@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type Item struct {
 	ItemName string
 	Quantity int
@@ -13,7 +15,8 @@ type Payment struct {
 	Gateway               string
 	Currency              string
 	Status                string
-	CreatedAt             string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 	PaymentMethod         string
 	PhoneNumber           string
 	EwalletCheckoutMethod string

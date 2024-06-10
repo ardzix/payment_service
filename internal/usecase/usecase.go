@@ -11,7 +11,7 @@ import (
 type PaymentUseCase interface {
 	ProcessPayment(ctx context.Context, payment *domain.Payment) (*domain.Payment, error)
 	RefundPayment(ctx context.Context, paymentID string, amount float64) (string, error)
-	GetPaymentStatus(ctx context.Context, paymentID string) (*domain.Payment, error)
+	GetPayment(ctx context.Context, paymentID string) (*domain.Payment, error)
 	ListPayments(ctx context.Context, userID string, page, pageSize int) ([]domain.Payment, int, error)
 }
 
@@ -49,11 +49,11 @@ func (uc *paymentUseCase) ProcessPayment(ctx context.Context, payment *domain.Pa
 	paymentMethod := payment.PaymentMethod
 
 	switch gateway {
-	case "XENDIT":
+	case "XENDIT", "Xendit", "xendit":
 		paymentID, err = uc.processWithXendit(ctx, paymentMethod, payment)
-	case "DOKU":
+	case "DOKU", "Doku", "doku":
 		paymentID, err = uc.processWithDoku(ctx, paymentMethod, payment)
-	case "STRIPE":
+	case "STRIPE", "Stripe", "stripe":
 		paymentID, err = uc.stripeClient.ProcessPayment(ctx, payment)
 	default:
 		return nil, errors.New("unsupported payment gateway")
@@ -62,11 +62,11 @@ func (uc *paymentUseCase) ProcessPayment(ctx context.Context, payment *domain.Pa
 	if err != nil && fallbackGateway != "" {
 		payment.Gateway = fallbackGateway
 		switch fallbackGateway {
-		case "Xendit":
+		case "XENDIT", "Xendit", "xendit":
 			paymentID, err = uc.processWithXendit(ctx, paymentMethod, payment)
-		case "Doku":
+		case "DOKU", "Doku", "doku":
 			paymentID, err = uc.processWithDoku(ctx, paymentMethod, payment)
-		case "Stripe":
+		case "STRIPE", "Stripe", "stripe":
 			paymentID, err = uc.stripeClient.ProcessPayment(ctx, payment)
 		}
 	}
@@ -144,7 +144,7 @@ func (uc *paymentUseCase) RefundPayment(ctx context.Context, paymentID string, a
 	return refundID, nil
 }
 
-func (uc *paymentUseCase) GetPaymentStatus(ctx context.Context, paymentID string) (*domain.Payment, error) {
+func (uc *paymentUseCase) GetPayment(ctx context.Context, paymentID string) (*domain.Payment, error) {
 	payment, err := uc.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
 		return nil, err

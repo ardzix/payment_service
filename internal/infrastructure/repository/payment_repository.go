@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"payment-service/internal/domain"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,6 +21,8 @@ func NewMongoPaymentRepository(client *mongo.Client) domain.PaymentRepository {
 
 func (r *MongoPaymentRepository) Save(ctx context.Context, payment *domain.Payment) error {
 	collection := r.client.Database("paymentdb").Collection("payments")
+	payment.CreatedAt = time.Now()
+	payment.UpdatedAt = time.Now()
 	_, err := collection.InsertOne(ctx, payment)
 	return err
 }
@@ -66,6 +69,6 @@ func (r *MongoPaymentRepository) FindByUserID(ctx context.Context, userID string
 
 func (r *MongoPaymentRepository) UpdateStatus(ctx context.Context, paymentID, status string) error {
 	collection := r.client.Database("paymentdb").Collection("payments")
-	_, err := collection.UpdateOne(ctx, bson.M{"paymentid": paymentID}, bson.M{"$set": bson.M{"status": status}})
+	_, err := collection.UpdateOne(ctx, bson.M{"paymentid": paymentID}, bson.M{"$set": bson.M{"status": status, "updatedat": time.Now()}})
 	return err
 }

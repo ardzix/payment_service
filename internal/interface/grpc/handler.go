@@ -9,6 +9,7 @@ import (
 	"payment-service/internal/usecase"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type PaymentHandler struct {
@@ -92,7 +93,7 @@ func (h *PaymentHandler) RefundPayment(ctx context.Context, req *proto.RefundPay
 }
 
 func (h *PaymentHandler) GetPaymentStatus(ctx context.Context, req *proto.GetPaymentStatusRequest) (*proto.GetPaymentStatusResponse, error) {
-	payment, err := h.useCase.GetPaymentStatus(ctx, req.PaymentId)
+	payment, err := h.useCase.GetPayment(ctx, req.PaymentId)
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +114,51 @@ func (h *PaymentHandler) ListPayments(ctx context.Context, req *proto.ListPaymen
 	response := &proto.ListPaymentsResponse{TotalCount: int32(total)}
 	for _, payment := range payments {
 		response.Payments = append(response.Payments, &proto.Payment{
-			PaymentId: payment.PaymentID,
-			UserId:    payment.UserID,
-			Amount:    payment.Amount,
-			Currency:  payment.Currency,
-			Status:    payment.Status,
-			CreatedAt: payment.CreatedAt,
+			PaymentId:     payment.PaymentID,
+			UserId:        payment.UserID,
+			Amount:        payment.Amount,
+			Currency:      payment.Currency,
+			PaymentMethod: payment.PaymentMethod,
+			Gateway:       payment.Gateway,
+			Status:        payment.Status,
+			CreatedAt:     timestamppb.New(payment.CreatedAt),
 		})
 	}
 
 	return response, nil
+}
+
+func (h *PaymentHandler) GetPaymentDetail(ctx context.Context, req *proto.GetPaymentDetailRequest) (*proto.GetPaymentDetailResponse, error) {
+	payment, err := h.useCase.GetPayment(ctx, req.PaymentId)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*proto.Item, len(payment.Items))
+	for i, item := range payment.Items {
+		items[i] = &proto.Item{
+			ItemName: item.ItemName,
+			Quantity: int32(item.Quantity),
+			Price:    item.Price,
+		}
+	}
+
+	return &proto.GetPaymentDetailResponse{
+		PaymentId:             payment.PaymentID,
+		UserId:                payment.UserID,
+		Amount:                payment.Amount,
+		Currency:              payment.Currency,
+		Status:                payment.Status,
+		CreatedAt:             timestamppb.New(payment.CreatedAt),
+		UpdatedAt:             timestamppb.New(payment.UpdatedAt),
+		PaymentMethod:         payment.PaymentMethod,
+		Gateway:               payment.Gateway,
+		PhoneNumber:           payment.PhoneNumber,
+		EwalletCheckoutMethod: payment.EwalletCheckoutMethod,
+		QrType:                payment.QrType,
+		QrCallbackUrl:         payment.QrCallbackURL,
+		InvoiceNumber:         payment.InvoiceNumber,
+		Agent:                 payment.Agent,
+		Items:                 items,
+	}, nil
 }
