@@ -16,6 +16,7 @@ message ProcessPaymentRequest {
     double amount = 2;
     string currency = 3;
     string payment_method = 4;
+    string phone_number = 5;
 }
 
 message ProcessPaymentResponse {

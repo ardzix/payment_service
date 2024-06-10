@@ -9,7 +9,7 @@ import (
 	"payment-service/internal/infrastructure/db"
 	"payment-service/internal/infrastructure/paymentgateway"
 	"payment-service/internal/infrastructure/repository"
-	grpcHandler "payment-service/internal/interface/grpc"
+	grpcServer "payment-service/internal/interface/grpc"
 	"payment-service/internal/usecase"
 
 	"google.golang.org/grpc"
@@ -31,10 +31,10 @@ func main() {
 	xenditClient := paymentgateway.NewXenditClient()
 
 	// Initialize use case
-	paymentUseCase := usecase.NewPaymentUseCase(paymentRepo, stripeClient, xenditClient)
+	paymentUseCase := usecase.NewPaymentUseCase(stripeClient, xenditClient, paymentRepo)
 
 	// Initialize gRPC handler
-	paymentHandler := grpcHandler.NewPaymentHandler(paymentUseCase)
+	paymentHandler := grpcServer.NewPaymentHandler(paymentUseCase)
 
 	// Set up gRPC server
 	grpcServer := grpc.NewServer()

@@ -26,14 +26,15 @@ func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessP
 		Amount:        req.Amount,
 		Currency:      req.Currency,
 		PaymentMethod: req.PaymentMethod,
+		PhoneNumber:   req.PhoneNumber,
 	}
 
-	result, err := h.useCase.ProcessPayment(ctx, payment)
+	processedPayment, err := h.useCase.ProcessPayment(ctx, payment)
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.ProcessPaymentResponse{PaymentId: result.PaymentID, Status: result.Status}, nil
+	return &proto.ProcessPaymentResponse{PaymentId: processedPayment.PaymentID, Status: processedPayment.Status}, nil
 }
 
 func (h *PaymentHandler) RefundPayment(ctx context.Context, req *proto.RefundPaymentRequest) (*proto.RefundPaymentResponse, error) {
@@ -51,16 +52,20 @@ func (h *PaymentHandler) GetPaymentStatus(ctx context.Context, req *proto.GetPay
 		return nil, err
 	}
 
-	return &proto.GetPaymentStatusResponse{PaymentId: payment.PaymentID, Status: payment.Status}, nil
+	return &proto.GetPaymentStatusResponse{
+		PaymentId:    payment.PaymentID,
+		Status:       payment.Status,
+		ErrorMessage: "",
+	}, nil
 }
 
 func (h *PaymentHandler) ListPayments(ctx context.Context, req *proto.ListPaymentsRequest) (*proto.ListPaymentsResponse, error) {
-	payments, totalCount, err := h.useCase.ListPayments(ctx, req.UserId, int(req.Page), int(req.PageSize))
+	payments, total, err := h.useCase.ListPayments(ctx, req.UserId, int(req.Page), int(req.PageSize))
 	if err != nil {
 		return nil, err
 	}
 
-	response := &proto.ListPaymentsResponse{TotalCount: int32(totalCount)}
+	response := &proto.ListPaymentsResponse{TotalCount: int32(total)}
 	for _, payment := range payments {
 		response.Payments = append(response.Payments, &proto.Payment{
 			PaymentId: payment.PaymentID,
