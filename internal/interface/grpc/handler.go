@@ -21,6 +21,7 @@ func NewPaymentHandler(useCase usecase.PaymentUseCase) *PaymentHandler {
 }
 
 func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessPaymentRequest) (*proto.ProcessPaymentResponse, error) {
+	// Validate required fields
 	if req.UserId == "" {
 		return nil, errors.New("user_id is required")
 	}
@@ -36,6 +37,16 @@ func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessP
 	if len(req.Items) == 0 {
 		return nil, errors.New("items are required")
 	}
+
+	// Validate amount matches total of items' price * quantity
+	var totalAmount float64
+	for _, item := range req.Items {
+		totalAmount += item.Price * float64(item.Quantity)
+	}
+	if totalAmount != req.Amount {
+		return nil, errors.New("amount does not match the total of items' price * quantity")
+	}
+
 	items := make([]domain.Item, len(req.Items))
 	for i, item := range req.Items {
 		items[i] = domain.Item{
