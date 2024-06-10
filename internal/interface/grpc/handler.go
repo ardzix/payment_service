@@ -3,6 +3,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"payment-service/api/proto"
 	"payment-service/internal/domain"
 	"payment-service/internal/usecase"
@@ -20,6 +21,30 @@ func NewPaymentHandler(useCase usecase.PaymentUseCase) *PaymentHandler {
 }
 
 func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessPaymentRequest) (*proto.ProcessPaymentResponse, error) {
+	if req.UserId == "" {
+		return nil, errors.New("user_id is required")
+	}
+	if req.Amount == 0 {
+		return nil, errors.New("amount is required")
+	}
+	if req.InvoiceNumber == "" {
+		return nil, errors.New("invoice_number is required")
+	}
+	if req.Agent == "" {
+		return nil, errors.New("agent is required")
+	}
+	if len(req.Items) == 0 {
+		return nil, errors.New("items are required")
+	}
+	items := make([]domain.Item, len(req.Items))
+	for i, item := range req.Items {
+		items[i] = domain.Item{
+			ItemName: item.ItemName,
+			Quantity: int(item.Quantity),
+			Price:    item.Price,
+		}
+	}
+
 	payment := &domain.Payment{
 		PaymentID:             uuid.New().String(),
 		UserID:                req.UserId,
@@ -30,14 +55,20 @@ func (h *PaymentHandler) ProcessPayment(ctx context.Context, req *proto.ProcessP
 		EwalletCheckoutMethod: req.EwalletCheckoutMethod,
 		QrType:                req.QrType,
 		QrCallbackURL:         req.QrCallbackUrl,
+		InvoiceNumber:         req.InvoiceNumber,
+		Agent:                 req.Agent,
+		Items:                 items,
 	}
 
-	processedPayment, err := h.useCase.ProcessPayment(ctx, payment)
+	result, err := h.useCase.ProcessPayment(ctx, payment)
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.ProcessPaymentResponse{PaymentId: processedPayment.PaymentID, Status: processedPayment.Status}, nil
+	return &proto.ProcessPaymentResponse{
+		PaymentId: result.PaymentID,
+		Status:    result.Status,
+	}, nil
 }
 
 func (h *PaymentHandler) RefundPayment(ctx context.Context, req *proto.RefundPaymentRequest) (*proto.RefundPaymentResponse, error) {

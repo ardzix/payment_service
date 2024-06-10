@@ -11,15 +11,24 @@ service PaymentService {
     rpc ListPayments (ListPaymentsRequest) returns (ListPaymentsResponse);
 }
 
+message Item {
+    string item_name = 1;
+    int32 quantity = 2;
+    double price = 3;
+}
+
 message ProcessPaymentRequest {
-    string user_id = 1;
-    double amount = 2;
+    string user_id = 1; // Required
+    double amount = 2; // Required
     string currency = 3;
     string payment_method = 4;
     string phone_number = 5;
     string ewallet_checkout_method = 6;
     string qr_type = 7;
     string qr_callback_url = 8;
+    string invoice_number = 9; // Required
+    string agent = 10; // Required
+    repeated Item items = 11; // Required
 }
 
 message ProcessPaymentResponse {
@@ -66,4 +75,3 @@ message Payment {
     string status = 5;
     string created_at = 6;
 }
-

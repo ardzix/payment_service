@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -15,6 +16,7 @@ import (
 	"payment-service/internal/usecase"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -33,9 +35,23 @@ func main() {
 	// Initialize payment gateway clients
 	stripeClient := paymentgateway.NewStripeClient()
 	xenditClient := paymentgateway.NewXenditClient()
+	dokuClient := paymentgateway.NewDokuClient()
+
+	// Initialize gRPC client for PaymentConfigService
+	grpcConn, err := grpc.NewClient(os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to PaymentConfigService: %v", err)
+	}
+	defer grpcConn.Close()
+
+	grpcTimeout, err := time.ParseDuration(os.Getenv("GRPC_TIMEOUT"))
+	if err != nil {
+		log.Fatalf("failed to parse GRPC_TIMEOUT: %v", err)
+	}
+	paymentConfigClient := paymentgateway.NewPaymentConfigClient(grpcConn, grpcTimeout)
 
 	// Initialize use case
-	paymentUseCase := usecase.NewPaymentUseCase(stripeClient, xenditClient, paymentRepo)
+	paymentUseCase := usecase.NewPaymentUseCase(stripeClient, xenditClient, dokuClient, paymentRepo, paymentConfigClient)
 
 	// Initialize gRPC handler
 	paymentHandler := grpcServer.NewPaymentHandler(paymentUseCase)

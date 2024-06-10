@@ -1,4 +1,3 @@
-// internal/infrastructure/repository/mongo_payment_repository.go
 package repository
 
 import (
@@ -7,71 +6,66 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type mongoPaymentRepository struct {
+type MongoPaymentRepository struct {
 	client *mongo.Client
 }
 
 func NewMongoPaymentRepository(client *mongo.Client) domain.PaymentRepository {
-	return &mongoPaymentRepository{
+	return &MongoPaymentRepository{
 		client: client,
 	}
 }
 
-func (r *mongoPaymentRepository) Save(ctx context.Context, payment *domain.Payment) error {
+func (r *MongoPaymentRepository) Save(ctx context.Context, payment *domain.Payment) error {
 	collection := r.client.Database("paymentdb").Collection("payments")
 	_, err := collection.InsertOne(ctx, payment)
 	return err
 }
 
-func (r *mongoPaymentRepository) FindByID(ctx context.Context, paymentID string) (*domain.Payment, error) {
+func (r *MongoPaymentRepository) FindByID(ctx context.Context, paymentID string) (*domain.Payment, error) {
 	collection := r.client.Database("paymentdb").Collection("payments")
-	filter := bson.M{"paymentid": paymentID}
 	var payment domain.Payment
-	err := collection.FindOne(ctx, filter).Decode(&payment)
+	err := collection.FindOne(ctx, bson.M{"paymentid": paymentID}).Decode(&payment)
 	if err != nil {
 		return nil, err
 	}
 	return &payment, nil
 }
 
-func (r *mongoPaymentRepository) FindByUserID(ctx context.Context, userID string, page, pageSize int) ([]domain.Payment, int, error) {
+func (r *MongoPaymentRepository) FindByUserID(ctx context.Context, userID string, page, pageSize int) ([]domain.Payment, int, error) {
 	collection := r.client.Database("paymentdb").Collection("payments")
+	var payments []domain.Payment
 	filter := bson.M{"userid": userID}
-	options := options.Find()
-	options.SetSkip(int64((page - 1) * pageSize))
-	options.SetLimit(int64(pageSize))
-
-	cursor, err := collection.Find(ctx, filter, options)
+	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
-	var payments []domain.Payment
 	for cursor.Next(ctx) {
 		var payment domain.Payment
-		err := cursor.Decode(&payment)
-		if err != nil {
+		if err = cursor.Decode(&payment); err != nil {
 			return nil, 0, err
 		}
 		payments = append(payments, payment)
 	}
 
-	total, err := collection.CountDocuments(ctx, filter)
+	if err = cursor.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	count, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return payments, int(total), nil
+	return payments, int(count), nil
 }
 
-func (r *mongoPaymentRepository) UpdateStatus(ctx context.Context, paymentID, status string) error {
+func (r *MongoPaymentRepository) UpdateStatus(ctx context.Context, paymentID, status string) error {
 	collection := r.client.Database("paymentdb").Collection("payments")
-	filter := bson.M{"paymentid": paymentID}
-	update := bson.M{"$set": bson.M{"status": status}}
-	_, err := collection.UpdateOne(ctx, filter, update)
+	_, err := collection.UpdateOne(ctx, bson.M{"paymentid": paymentID}, bson.M{"$set": bson.M{"status": status}})
 	return err
 }

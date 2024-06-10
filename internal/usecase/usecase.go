@@ -1,9 +1,9 @@
-// internal/usecase/usecase.go
 package usecase
 
 import (
 	"context"
 	"errors"
+	"os"
 	"payment-service/internal/domain"
 	"payment-service/internal/infrastructure/paymentgateway"
 )
@@ -16,16 +16,23 @@ type PaymentUseCase interface {
 }
 
 type paymentUseCase struct {
-	stripeClient *paymentgateway.StripeClient
-	xenditClient *paymentgateway.XenditClient
-	paymentRepo  domain.PaymentRepository
+	stripeClient        *paymentgateway.StripeClient
+	xenditClient        *paymentgateway.XenditClient
+	dokuClient          *paymentgateway.DokuClient
+	paymentRepo         domain.PaymentRepository
+	paymentConfigClient *paymentgateway.PaymentConfigClient
+	defaultPG           string
 }
 
-func NewPaymentUseCase(stripeClient *paymentgateway.StripeClient, xenditClient *paymentgateway.XenditClient, paymentRepo domain.PaymentRepository) PaymentUseCase {
+func NewPaymentUseCase(stripeClient *paymentgateway.StripeClient, xenditClient *paymentgateway.XenditClient, dokuClient *paymentgateway.DokuClient, paymentRepo domain.PaymentRepository, paymentConfigClient *paymentgateway.PaymentConfigClient) PaymentUseCase {
+	defaultPG := os.Getenv("DEFAULT_PG")
 	return &paymentUseCase{
-		stripeClient: stripeClient,
-		xenditClient: xenditClient,
-		paymentRepo:  paymentRepo,
+		stripeClient:        stripeClient,
+		xenditClient:        xenditClient,
+		dokuClient:          dokuClient,
+		paymentRepo:         paymentRepo,
+		paymentConfigClient: paymentConfigClient,
+		defaultPG:           defaultPG,
 	}
 }
 
@@ -33,19 +40,35 @@ func (uc *paymentUseCase) ProcessPayment(ctx context.Context, payment *domain.Pa
 	var paymentID string
 	var err error
 
-	switch payment.PaymentMethod {
-	case "XEN-OVO", "XEN-DANA", "XEN-LINKAJA":
-		paymentID, err = uc.xenditClient.ChargeEWallet(ctx, payment)
-	case "XEN-BCA", "XEN-BNI", "XEN-BRI":
-		paymentID, err = uc.xenditClient.CreateVirtualAccount(ctx, payment)
-	case "XEN-QR":
-		paymentID, err = uc.xenditClient.CreateQRCode(ctx, payment)
-	case "XEN-DEFAULT":
-		paymentID, err = uc.xenditClient.ProcessPayment(ctx, payment) // Xendit default
-	case "STP-DEFAULT":
-		paymentID, err = uc.stripeClient.ProcessPayment(ctx, payment) // Stripe default
+	gateway, fallbackGateway, err := uc.paymentConfigClient.GetPaymentGatewayConfig(payment.PaymentMethod)
+	if err != nil || gateway == "" {
+		gateway = uc.defaultPG
+	}
+
+	payment.Gateway = gateway
+	paymentMethod := payment.PaymentMethod
+
+	switch gateway {
+	case "XENDIT":
+		paymentID, err = uc.processWithXendit(ctx, paymentMethod, payment)
+	case "DOKU":
+		paymentID, err = uc.processWithDoku(ctx, paymentMethod, payment)
+	case "STRIPE":
+		paymentID, err = uc.stripeClient.ProcessPayment(ctx, payment)
 	default:
-		return nil, errors.New("unsupported payment method")
+		return nil, errors.New("unsupported payment gateway")
+	}
+
+	if err != nil && fallbackGateway != "" {
+		payment.Gateway = fallbackGateway
+		switch fallbackGateway {
+		case "Xendit":
+			paymentID, err = uc.processWithXendit(ctx, paymentMethod, payment)
+		case "Doku":
+			paymentID, err = uc.processWithDoku(ctx, paymentMethod, payment)
+		case "Stripe":
+			paymentID, err = uc.stripeClient.ProcessPayment(ctx, payment)
+		}
 	}
 
 	if err != nil {
@@ -62,6 +85,36 @@ func (uc *paymentUseCase) ProcessPayment(ctx context.Context, payment *domain.Pa
 	return payment, nil
 }
 
+func (uc *paymentUseCase) processWithXendit(ctx context.Context, paymentMethod string, payment *domain.Payment) (string, error) {
+	switch paymentMethod {
+	case "OVO", "DANA", "LINKAJA":
+		return uc.xenditClient.ChargeEWallet(ctx, payment)
+	case "BCA", "BNI", "BRI":
+		return uc.xenditClient.CreateVirtualAccount(ctx, payment)
+	case "QR":
+		return uc.xenditClient.CreateQRCode(ctx, payment)
+	case "DEFAULT":
+		return uc.xenditClient.ProcessPayment(ctx, payment)
+	default:
+		return "", errors.New("unsupported payment method for Xendit")
+	}
+}
+
+func (uc *paymentUseCase) processWithDoku(ctx context.Context, paymentMethod string, payment *domain.Payment) (string, error) {
+	switch paymentMethod {
+	case "OVO", "DANA", "LINKAJA":
+		return uc.dokuClient.ChargeEWallet(ctx, payment)
+	case "BCA", "BNI", "BRI":
+		return uc.dokuClient.CreateVirtualAccount(ctx, payment)
+	case "QR":
+		return uc.dokuClient.CreateQRCode(ctx, payment)
+	case "DEFAULT":
+		return uc.dokuClient.ProcessPayment(ctx, payment)
+	default:
+		return "", errors.New("unsupported payment method for Doku")
+	}
+}
+
 func (uc *paymentUseCase) RefundPayment(ctx context.Context, paymentID string, amount float64) (string, error) {
 	// Retrieve payment to determine which client to use for refund
 	payment, err := uc.paymentRepo.FindByID(ctx, paymentID)
@@ -71,7 +124,7 @@ func (uc *paymentUseCase) RefundPayment(ctx context.Context, paymentID string, a
 
 	var refundID string
 	switch payment.PaymentMethod {
-	case "XEN-OVO", "XEN-DANA", "XEN-LINKAJA", "XEN-BCA", "XEN-BNI", "XEN-BRI", "XEN-QR", "XEN-DEFAULT":
+	case "OVO", "DANA", "LINKAJA", "BCA", "BNI", "BRI", "QR", "DEFAULT":
 		refundID, err = uc.xenditClient.RefundPayment(ctx, paymentID, amount)
 	case "STP-DEFAULT":
 		refundID, err = uc.stripeClient.RefundPayment(ctx, paymentID, amount)

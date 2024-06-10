@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package paymentconfig;
+
+option go_package = "api/proto";
+
+service PaymentConfigService {
+    rpc GetPaymentGatewayConfig (PaymentMethodRequest) returns (PaymentGatewayResponse);
+}
+
+message PaymentMethodRequest {
+    string payment_method = 1;
+}
+
+message PaymentGatewayResponse {
+    string gateway = 1;
+    string fallback_gateway = 2;
+}
