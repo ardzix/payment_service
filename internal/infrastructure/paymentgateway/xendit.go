@@ -2,6 +2,7 @@ package paymentgateway
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"payment-service/internal/domain"
 	"strings"
@@ -47,14 +48,22 @@ func (xc *XenditClient) RefundPayment(ctx context.Context, paymentID string, amo
 
 func (xc *XenditClient) ChargeEWallet(ctx context.Context, payment *domain.Payment) (string, error) {
 	xendit.Opt.SecretKey = xc.apiKey
+	channelProperties := map[string]string{
+		"mobile_number":        "+6285811144421",
+		"success_redirect_url": "https://arnatech.id",
+	}
 	params := ewallet.CreateEWalletChargeParams{
-		ReferenceID:    payment.PaymentID,
-		Currency:       payment.Currency,
-		Amount:         float64(payment.Amount * 100), // Xendit expects amount in cents
-		CheckoutMethod: payment.EwalletCheckoutMethod,
+		ReferenceID:       payment.PaymentID,
+		Currency:          payment.Currency,
+		Amount:            payment.Amount,
+		CheckoutMethod:    payment.EwalletCheckoutMethod,
+		ChannelCode:       "ID_" + payment.PaymentMethod,
+		ChannelProperties: channelProperties,
 	}
 
 	charge, err := ewallet.CreateEWalletCharge(&params)
+	fmt.Println(params)
+	fmt.Println(err)
 	if err != nil {
 		return "", err
 	}
@@ -67,12 +76,13 @@ func (xc *XenditClient) CreateVirtualAccount(ctx context.Context, payment *domai
 
 	// Remove the "XEN-" prefix from the payment method
 	bankCode := strings.TrimPrefix(payment.PaymentMethod, "XEN-")
-
+	trueValue := true
 	params := virtualaccount.CreateFixedVAParams{
 		ExternalID:     payment.PaymentID,
-		BankCode:       bankCode,                      // Bank code, e.g., "BCA", "BNI", etc.
-		Name:           payment.UserID,                // Assuming UserID is the name here
-		ExpectedAmount: float64(payment.Amount * 100), // Xendit expects amount in cents
+		BankCode:       bankCode,       // Bank code, e.g., "BCA", "BNI", etc.
+		Name:           payment.UserID, // Assuming UserID is the name here
+		ExpectedAmount: payment.Amount,
+		IsClosed:       &trueValue,
 	}
 
 	va, err := virtualaccount.CreateFixedVA(&params)
@@ -88,7 +98,7 @@ func (xc *XenditClient) CreateQRCode(ctx context.Context, payment *domain.Paymen
 
 	params := qrcode.CreateQRCodeParams{
 		ExternalID:  payment.PaymentID,
-		Amount:      float64(payment.Amount * 100), // Xendit expects amount in cents
+		Amount:      payment.Amount,
 		Type:        xendit.QRCodeType(payment.QrType),
 		CallbackURL: payment.QrCallbackURL,
 	}
