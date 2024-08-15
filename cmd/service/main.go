@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
 	"payment-service/api/proto"
@@ -13,6 +15,7 @@ import (
 	"payment-service/internal/infrastructure/paymentgateway"
 	"payment-service/internal/infrastructure/repository"
 	grpcServer "payment-service/internal/interface/grpc"
+	restServer "payment-service/internal/interface/rest"
 	"payment-service/internal/usecase"
 
 	"google.golang.org/grpc"
@@ -38,7 +41,7 @@ func main() {
 	dokuClient := paymentgateway.NewDokuClient()
 
 	// Initialize gRPC client for PaymentConfigService
-	grpcConn, err := grpc.NewClient(os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConn, err := grpc.Dial(os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to PaymentConfigService: %v", err)
 	}
@@ -61,12 +64,31 @@ func main() {
 	proto.RegisterPaymentServiceServer(grpcServer, paymentHandler)
 
 	// Start gRPC server
-	lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+	go func() {
+		lis, err := net.Listen("tcp", ":50051")
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		log.Println("gRPC server listening on port 50051")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	// Set up REST server
+	restHandler := restServer.NewPaymentHandler(paymentUseCase)
+	router := mux.NewRouter()
+	router.HandleFunc("/payments", restHandler.CreatePayment).Methods("POST")
+
+	// Start REST server
+	httpServer := &http.Server{
+		Addr:         ":8080",
+		Handler:      router,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
-	log.Println("gRPC server listening on port 50051")
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	log.Println("REST server listening on port 8080")
+	if err := httpServer.ListenAndServe(); err != nil {
+		log.Fatalf("failed to start REST server: %v", err)
 	}
 }

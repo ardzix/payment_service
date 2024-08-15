@@ -13,6 +13,7 @@ type PaymentUseCase interface {
 	RefundPayment(ctx context.Context, paymentID string, amount float64) (string, error)
 	GetPayment(ctx context.Context, paymentID string) (*domain.Payment, error)
 	ListPayments(ctx context.Context, userID string, page, pageSize int) ([]domain.Payment, int, error)
+	QrWebhook(ctx context.Context, requestBody domain.XenditWebhookRequestPaymentData) (string, error)
 }
 
 type paymentUseCase struct {
@@ -158,4 +159,19 @@ func (uc *paymentUseCase) ListPayments(ctx context.Context, userID string, page,
 		return nil, 0, err
 	}
 	return payments, total, nil
+}
+
+func (uc *paymentUseCase) QrWebhook(ctx context.Context, requestBody domain.XenditWebhookRequestPaymentData) (string, error) {
+	payment, err := uc.paymentRepo.FindByID(ctx, requestBody.ReferenceID)
+	if err != nil {
+		return "failed", err
+	}
+
+	err = uc.paymentRepo.UpdateStatus(ctx, payment.PaymentID, requestBody.Status)
+
+	if err != nil {
+		return "failed", err
+	}
+
+	return "Success", nil
 }
