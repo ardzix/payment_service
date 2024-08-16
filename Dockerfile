@@ -25,8 +25,8 @@ WORKDIR /root/
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/payment-service .
 
-# Expose port 50051 to the outside world
-EXPOSE 50051
+# Expose port 50056 to the outside world
+EXPOSE 50056 8084
 
 # Command to run the executable
 CMD ["./payment-service"]

@@ -54,7 +54,7 @@ docker build -t payment-service .
 Run the Docker container:
 
 ```sh
-docker run -p 50051:50051 payment-service
+docker run -p 50056:50056 payment-service
 ```
 
 ## Environment Variables

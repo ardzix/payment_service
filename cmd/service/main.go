@@ -65,11 +65,11 @@ func main() {
 
 	// Start gRPC server
 	go func() {
-		lis, err := net.Listen("tcp", ":50051")
+		lis, err := net.Listen("tcp", ":50056")
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
-		log.Println("gRPC server listening on port 50051")
+		log.Println("gRPC server listening on port 50056")
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
@@ -82,12 +82,12 @@ func main() {
 
 	// Start REST server
 	httpServer := &http.Server{
-		Addr:         ":8080",
+		Addr:         ":8084",
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	log.Println("REST server listening on port 8080")
+	log.Println("REST server listening on port 8084")
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatalf("failed to start REST server: %v", err)
 	}
