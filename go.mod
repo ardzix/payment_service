@@ -1,6 +1,6 @@
 module payment-service
 
-go 1.8
+go 1.22.4
 
 require (
 	github.com/golang/protobuf v1.5.4
