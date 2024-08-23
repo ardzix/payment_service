@@ -45,9 +45,9 @@ func main() {
 	dokuClient := paymentgateway.NewDokuClient()
 
 	// Initialize gRPC client for PaymentConfigService
-	grpcAddr := os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS")
+	grpcAddr := os.Getenv("PAYMENT_CONFIG_SERVICE_HOST")
 	if grpcAddr == "" {
-		log.Fatal("PAYMENT_CONFIG_SERVICE_ADDRESS environment variable is not set")
+		log.Fatal("PAYMENT_CONFIG_SERVICE_HOST environment variable is not set")
 	}
 	grpcPort := os.Getenv("PAYMENT_CONFIG_SERVICE_PORT")
 	if grpcPort == "" {
