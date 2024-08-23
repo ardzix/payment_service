@@ -26,11 +26,15 @@ func main() {
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error loading .env file")
+		log.Println("No .env file found. Continuing with environment variables from the environment.")
 	}
 
 	// Initialize MongoDB client
-	mongoClient := db.NewMongoClient(os.Getenv("MONGO_URI"))
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		log.Fatal("MONGO_URI environment variable is not set")
+	}
+	mongoClient := db.NewMongoClient(mongoURI)
 
 	// Initialize repository
 	paymentRepo := repository.NewMongoPaymentRepository(mongoClient)
@@ -41,17 +45,32 @@ func main() {
 	dokuClient := paymentgateway.NewDokuClient()
 
 	// Initialize gRPC client for PaymentConfigService
-	grpcConn, err := grpc.Dial(os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcAddr := os.Getenv("PAYMENT_CONFIG_SERVICE_ADDRESS")
+	if grpcAddr == "" {
+		log.Fatal("PAYMENT_CONFIG_SERVICE_ADDRESS environment variable is not set")
+	}
+	grpcPort := os.Getenv("PAYMENT_CONFIG_SERVICE_PORT")
+	if grpcPort == "" {
+		log.Fatal("PAYMENT_CONFIG_SERVICE_PORT environment variable is not set")
+	}
+
+	grpcConn, err := grpc.Dial(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to PaymentConfigService: %v", err)
 	}
 	defer grpcConn.Close()
 
-	grpcTimeout, err := time.ParseDuration(os.Getenv("GRPC_TIMEOUT"))
+	grpcTimeout := os.Getenv("GRPC_TIMEOUT")
+	if grpcTimeout == "" {
+		log.Fatal("GRPC_TIMEOUT environment variable is not set")
+	}
+
+	timeoutDuration, err := time.ParseDuration(grpcTimeout)
 	if err != nil {
 		log.Fatalf("failed to parse GRPC_TIMEOUT: %v", err)
 	}
-	paymentConfigClient := paymentgateway.NewPaymentConfigClient(grpcConn, grpcTimeout)
+
+	paymentConfigClient := paymentgateway.NewPaymentConfigClient(grpcConn, timeoutDuration)
 
 	// Initialize use case
 	paymentUseCase := usecase.NewPaymentUseCase(stripeClient, xenditClient, dokuClient, paymentRepo, paymentConfigClient)
@@ -65,7 +84,7 @@ func main() {
 
 	// Start gRPC server
 	go func() {
-		lis, err := net.Listen("tcp", ":50056")
+		lis, err := net.Listen("tcp", ":%v")
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
