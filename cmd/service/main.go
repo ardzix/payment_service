@@ -54,7 +54,7 @@ func main() {
 		log.Fatal("PAYMENT_CONFIG_SERVICE_PORT environment variable is not set")
 	}
 
-	grpcConn, err := grpc.Dial(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConn, err := grpc.Dial(grpcAddr+":"+grpcPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to PaymentConfigService: %v", err)
 	}

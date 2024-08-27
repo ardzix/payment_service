@@ -2,7 +2,7 @@ package paymentgateway
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"payment-service/internal/domain"
 	"strings"
@@ -33,11 +33,14 @@ func (xc *XenditClient) ProcessPayment(ctx context.Context, payment *domain.Paym
 		Currency:   payment.Currency,
 	}
 
+	log.Printf("Sending request to Xendit to create an invoice: %+v\n", data)
 	createdInvoice, err := invoice.Create(&data)
 	if err != nil {
+		log.Printf("Error creating invoice with Xendit: %v\n", err)
 		return "", err
 	}
 
+	log.Printf("Invoice created successfully with ID: %s\n", createdInvoice.ID)
 	return createdInvoice.ID, nil
 }
 
@@ -61,13 +64,14 @@ func (xc *XenditClient) ChargeEWallet(ctx context.Context, payment *domain.Payme
 		ChannelProperties: channelProperties,
 	}
 
+	log.Printf("Sending request to Xendit to charge e-wallet: %+v\n", params)
 	charge, err := ewallet.CreateEWalletCharge(&params)
-	fmt.Println(params)
-	fmt.Println(err)
 	if err != nil {
+		log.Printf("Error charging e-wallet with Xendit: %v\n", err)
 		return "", err
 	}
 
+	log.Printf("E-wallet charged successfully with ID: %s\n", charge.ID)
 	return charge.ID, nil
 }
 
@@ -85,11 +89,14 @@ func (xc *XenditClient) CreateVirtualAccount(ctx context.Context, payment *domai
 		IsClosed:       &trueValue,
 	}
 
+	log.Printf("Sending request to Xendit to create virtual account: %+v\n", params)
 	va, err := virtualaccount.CreateFixedVA(&params)
 	if err != nil {
+		log.Printf("Error creating virtual account with Xendit: %v\n", err)
 		return "", err
 	}
 
+	log.Printf("Virtual account created successfully with ID: %s\n", va.ID)
 	return va.ID, nil
 }
 
@@ -103,10 +110,15 @@ func (xc *XenditClient) CreateQRCode(ctx context.Context, payment *domain.Paymen
 		CallbackURL: payment.QrCallbackURL,
 	}
 
+	log.Printf("Sending request to Xendit to create QR code: %+v\n", params)
 	qrCode, err := qrcode.CreateQRCode(&params)
 	if err != nil {
+		log.Printf("Error creating QR code with Xendit: %v\n", err)
 		return "", err
 	}
 
-	return qrCode.QRString, nil
+	payment.QrString = qrCode.QRString
+
+	log.Printf("QR code created successfully with details: %+v\n", qrCode)
+	return qrCode.ID, nil
 }

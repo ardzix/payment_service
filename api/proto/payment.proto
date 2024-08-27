@@ -48,6 +48,8 @@ message ProcessPaymentRequest {
 message ProcessPaymentResponse {
     string payment_id = 1;
     string status = 2;
+    string payment_method = 3;
+    string qr_string = 4;
 }
 
 message RefundPaymentRequest {
@@ -99,7 +101,8 @@ message GetPaymentDetailResponse {
     string ewallet_checkout_method = 11;
     string qr_type = 12;
     string qr_callback_url = 13;
-    string invoice_number = 14;
-    string agent = 15;
-    repeated Item items = 16;
+    string qr_string = 14;
+    string invoice_number = 15;
+    string agent = 16;
+    repeated Item items = 17;
 }

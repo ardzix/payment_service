@@ -22,6 +22,7 @@ type Payment struct {
 	EwalletCheckoutMethod string
 	QrType                string
 	QrCallbackURL         string
+	QrString              string
 	InvoiceNumber         string
 	Agent                 string
 	Items                 []Item
